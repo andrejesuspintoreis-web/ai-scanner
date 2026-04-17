@@ -1,13 +1,86 @@
 <!DOCTYPE html>
-<html>
-<head><meta charset="UTF-8"><title>AI Scanner</title></head>
+<html lang="pt" data-theme="dark">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>AI Market Scanner</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:system-ui,sans-serif;background:#111;color:#ddd;padding:1rem}
+h1{font-size:1.4rem;margin-bottom:1rem;color:#4f98a3}
+.card{background:#1c1b19;border:1px solid #333;border-radius:12px;padding:1rem;margin-bottom:.75rem}
+.head{display:flex;justify-content:space-between;align-items:center;margin-bottom:.5rem}
+.ticker{font-size:1.2rem;font-weight:700;font-family:monospace}
+.badge{padding:.2rem .6rem;border-radius:99px;font-size:.75rem;font-weight:700}
+.buy{color:#6daa45}.sell{color:#d163a7}.hold{color:#e8af34}
+.bg-buy{background:#1f2e18}.bg-sell{background:#2a1522}.bg-hold{background:#2a2010}
+.price{font-size:1.5rem;font-weight:700;margin:.25rem 0}
+.chg{font-size:.85rem;font-family:monospace}
+.inds{display:grid;grid-template-columns:repeat(3,1fr);gap:.5rem;margin:.75rem 0}
+.ind{background:#232220;border-radius:8px;padding:.5rem}
+.ind-l{font-size:.7rem;color:#666}
+.ind-v{font-size:.85rem;font-weight:600;font-family:monospace}
+.reason{font-size:.75rem;color:#888;background:#1a1a18;padding:.6rem;border-radius:6px;border-left:2px solid #4f98a3;line-height:1.5}
+.footer{display:flex;justify-content:space-between;align-items:center;margin-top:.75rem;padding-top:.75rem;border-top:1px solid #2a2927;font-size:.75rem;color:#555}
+.stats{display:grid;grid-template-columns:repeat(2,1fr);gap:.5rem;margin-bottom:1rem}
+.stat{background:#1c1b19;border:1px solid #333;border-radius:10px;padding:.75rem;text-align:center}
+.stat-v{font-size:1.5rem;font-weight:700}
+.stat-l{font-size:.7rem;color:#666;margin-top:2px}
+.error{text-align:center;padding:3rem 1rem;color:#666}
+.error h2{color:#ddd;margin-bottom:.5rem}
+.error code{display:block;margin-top:.75rem;padding:.75rem;background:#1c1b19;border-radius:8px;font-size:.75rem;color:#4f98a3;text-align:left}
+.refresh{background:#4f98a3;color:#fff;border:none;padding:.5rem 1rem;border-radius:8px;font-size:.85rem;cursor:pointer;margin-bottom:1rem}
+</style>
+</head>
 <body>
-<h1>A carregar...</h1>
+<h1>⚡ AI Market Scanner</h1>
+<button class="refresh" onclick="load()">↻ Atualizar</button>
+<div id="stats" class="stats" style="display:none">
+<div class="stat"><div class="stat-v buy" id="s-buy">0</div><div class="stat-l">BUY</div></div>
+<div class="stat"><div class="stat-v sell" id="s-sell">0</div><div class="stat-l">SELL</div></div>
+</div>
+<div id="app"></div>
 <script>
-fetch('scanner_data.json')
-.then(r=>r.json())
-.then(d=>document.body.innerHTML='<h1>'+d.total+' ativos analisados</h1>')
-.catch(()=>document.body.innerHTML='<h1>Corre o scanner Python primeiro</h1>')
+function card(s){
+  const cls=s.signal==='BUY'?'buy':s.signal==='SELL'?'sell':'hold';
+  const chg=s.change>=0?'+'+s.change.toFixed(2)+'%':s.change.toFixed(2)+'%';
+  const chgcls=s.change>=0?'buy':'sell';
+  return `<div class="card">
+    <div class="head">
+      <div><div class="ticker">${s.ticker}</div><div style="font-size:.75rem;color:#666">${s.name}</div></div>
+      <span class="badge ${cls} bg-${cls}">${s.signal}</span>
+    </div>
+    <div class="price">$${parseFloat(s.price).toFixed(2)} <span class="chg ${chgcls}">${chg}</span></div>
+    <div class="inds">
+      <div class="ind"><div class="ind-l">RSI</div><div class="ind-v">${parseFloat(s.rsi).toFixed(1)}</div></div>
+      <div class="ind"><div class="ind-l">SMA20</div><div class="ind-v">${parseFloat(s.sma20).toFixed(2)}</div></div>
+      <div class="ind"><div class="ind-l">MACD</div><div class="ind-v">${parseFloat(s.macd).toFixed(3)}</div></div>
+    </div>
+    <div class="reason">${(s.reasons||[]).join(' · ')}</div>
+    <div class="footer"><span>Stop $${s.stop} · Alvo $${s.target}</span><span style="color:#4f98a3">Confiança ${s.confidence}%</span></div>
+  </div>`;
+}
+function load(){
+  document.getElementById('app').innerHTML='<p style="text-align:center;padding:2rem;color:#666">A carregar dados reais...</p>';
+  fetch('scanner_data.json?t='+Date.now())
+  .then(r=>{if(!r.ok)throw new Error();return r.json()})
+  .then(d=>{
+    document.getElementById('stats').style.display='grid';
+    document.getElementById('s-buy').textContent=d.buy_count||0;
+    document.getElementById('s-sell').textContent=d.sell_count||0;
+    const sorted=[...d.signals].sort((a,b)=>b.confidence-a.confidence);
+    document.getElementById('app').innerHTML=sorted.map(card).join('');
+  })
+  .catch(()=>{
+    document.getElementById('app').innerHTML=`<div class="error">
+      <h2>Scanner Python não está a correr</h2>
+      <p>Executa o backend para gerar os dados:</p>
+      <code>pip install yfinance pandas pandas-ta groq<br>python scanner_backend.py</code>
+    </div>`;
+  });
+}
+load();
+setInterval(load,5*60*1000);
 </script>
 </body>
 </html>
